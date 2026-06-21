@@ -1,0 +1,70 @@
+# NOTE: In the actual GitHub repository this file lives at
+# .github/workflows/docker.yml -- it is written here under a flattened
+# filename purely so it can be inspected inside this Colab session.
+#
+# FIX: paths below have NO "tourism_project/" prefix. When this notebook's
+# git push runs, the tourism_project/ folder itself becomes the repo ROOT on
+# GitHub (because git init happens inside that directory) -- so on the
+# Actions runner, after actions/checkout, "model_building/", "deployment/",
+# and "data/" sit directly at the repo root with no tourism_project/ prefix.
+name: Tourism Package Prediction MLOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  data-registration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r model_building/requirements.txt
+      - name: Register raw data on Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python model_building/data_register.py
+
+  data-preparation:
+    needs: data-registration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r model_building/requirements.txt
+      - name: Clean, split and register train/test data
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python model_building/prep.py
+
+  model-training:
+    needs: data-preparation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r model_building/requirements.txt
+      - name: Train model with GridSearchCV and log to MLflow
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python model_building/train.py
+
+  model-deployment:
+    needs: model-training
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r model_building/requirements.txt
+      - name: Deploy Streamlit app to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python deployment/deploy.py
