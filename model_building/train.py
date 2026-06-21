@@ -19,7 +19,8 @@ from sklearn.metrics import classification_report
 logging.getLogger("mlflow").setLevel(logging.WARNING)
 
 # Set up MLflow tracking (local file store inside the CI/CD runner)
-mlflow.set_tracking_uri("file:///tmp/mlruns")
+# FIX: newer mlflow blocks the raw filesystem store by default; use SQLite instead
+mlflow.set_tracking_uri("sqlite:////tmp/mlflow.db")
 mlflow.set_experiment("tourism-package-prediction-experiment")
 
 # Initialize Hugging Face API client using the token from environment variables
